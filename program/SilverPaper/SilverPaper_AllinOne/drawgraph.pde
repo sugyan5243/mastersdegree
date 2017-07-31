@@ -21,8 +21,8 @@ public class DrawGraph{
     text(Zero, startX-dataStart+60, startY+graphHeight+20);
     text(One, startX-dataStart+30, startY+15);
     text(Up, startX-dataStart+30, startY-20);
-    text(Ave, startX-dataStart+20, convToGraphPoint(500));
-    tenline(startX,(int)convToGraphPoint(500),startX+graphWidth,(int)convToGraphPoint(500));
+    text(Ave, startX-dataStart+20, convToGraphPoint(300));
+    tenline(startX,(int)convToGraphPoint(300),startX+graphWidth,(int)convToGraphPoint(300));
     text(Right, startX+graphWidth+10, startY+graphHeight+20);
   }
 
@@ -69,9 +69,9 @@ public class DrawGraph{
     for(int i = 0; i < sensorNum; i++){
       changeColor(i);
       for(int j = 0; j < dataNum-1; j++){
-        line(startX+j*(graphWidth/(float)dataNum),convToGraphPoint(value[i][j]),startX+(j+1)*(graphWidth/(float)dataNum),convToGraphPoint(value[i][j+1]));
+        line(startX+j*(graphWidth/(float)dataNum),convToGraphPoint(value[i][j]*3.0),startX+(j+1)*(graphWidth/(float)dataNum),convToGraphPoint(value[i][j+1]*3.0));
       }
-      line(startX+(dataNum-1)*graphWidth/(float)(dataNum),convToGraphPoint(value[i][dataNum-1]),startX+graphWidth,convToGraphPoint(value[i][dataNum-1]));
+      line(startX+(dataNum-1)*graphWidth/(float)(dataNum),convToGraphPoint(value[i][dataNum-1]*3.0),startX+graphWidth,convToGraphPoint(value[i][dataNum-1]*3.0));
     }
   }
   

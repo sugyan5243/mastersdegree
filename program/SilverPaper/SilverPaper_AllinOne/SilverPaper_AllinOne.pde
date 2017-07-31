@@ -1,5 +1,5 @@
-//これ以前のソースコードから大きく変更
-//追加要素: FFT(自信がない)，単一結線バーコードver0.2
+//6月に突入したのでフォルダ分ける，Github使えや！
+//追加要素: 単一結線バーコードver0.3
 //Font: Menlo
 
 import processing.serial.*;
@@ -53,13 +53,19 @@ Boolean isResetROM = false;
 float ROMMin = 10000;
 float ROMs[] = new float[100];
 int ROMnum = 0;
+
 //分割を用いた実装法
 float tiisai = 10000;
 float ookii = -10000;
-//平均を用いた実装法
-long sum = 0;
-long num = 0;
-float val = 0;
+
+//傾きを用いた実装法
+int data = 0;
+float dataA = 0;
+float dataB = 0;
+int nowROM = 0;
+float gin = 0;
+float kami = 0;
+Boolean Fin = false;
 
 //そのた
 String aveValuesStr[] = new String[sensorNum];
@@ -78,6 +84,10 @@ void setup() {
 
   //初期化
   initialize();
+  
+  //ファイル出力
+  String out = hour() + "" + minute() +""+ second()+".txt";
+  output = createWriter(out);
 }
 
 
@@ -90,7 +100,7 @@ void draw() {
   aveaveValues = base.reloadaveaveValues(aveaveValues, aveValues, sensorNum, dataNum);
 
   //グラフ描画
-  graph.drawGraphFrame(graphyoko, 50, graphWidth, graphHeight, graphMax, "0", "1000", "[arbs.unit]", "500", "64 [num]");
+  graph.drawGraphFrame(graphyoko, 50, graphWidth, graphHeight, graphMax, "0", "1000", "[arbs.unit]", "100", "64 [num]");
   graph.drawGraphData(aveaveValues, sensorNum, dataNum);
 
   //FFT計算&描画
@@ -98,76 +108,75 @@ void draw() {
   graphFFT.drawGraphFrame(graphyoko, 400, graphWidthFFT, graphHeight, graphMaxFFT, "0", "", "", "", "64 [Hz]");
   graphFFT.drawGraphData(fftdata, sensorNum, dataNum);
 
-
-  //単一結線ROM読取(平均を用いた実装法，超超速度依存)
-  //1.黒線に触れる
-  if(!isReadROM && !isResetROM && rom.ResetROM(values[0])){
-    isReadROM = true;
-    isResetROM = false;
-  }
-  if(isReadROM){
-    if(values[0] < rom.one_threshold){
-      isResetROM = false;
-    }
-    //3.再度黒線に触れる
-    if(!isResetROM && rom.ResetROM(values[0])){
-      ROMs[ROMnum++] = sum/(float)num+val;
-      isResetROM = true;
-      sum = 0;
-      val = 0;
-      ROMMin = 10000;
-      
-      //大小チェック
-        if(ROMs[(ROMnum-1)] < tiisai){
-          tiisai = ROMs[(ROMnum-1)];
-        }if(ROMs[(ROMnum-1)] > ookii){
-          ookii = ROMs[(ROMnum-1)];
-        }
-      
-    //2.再度黒線に触れるまで
-    }else{
-      ROMMin = rom.ReturnMin(values[0],ROMMin);
-      //初期値からどれだけ値が異なるかによる平均値取得
-      if(val != 0){
-        sum += values[0]-val;
-        num++;
-      }else{
-        val = values[0];
-      }
-      
-      //手を離したとき(読込終了)
-      if(ROMMin == 0){
-        isReadROM = false;
-        isResetROM = true;
-        //4.最後に出力する
-        if(!isReadROM && isResetROM){
-          for(int i = 1; i < ROMnum; i++){
-            print(ROMs[i]+" ");
-            if(ookii-ROMs[i] < ROMs[i]-tiisai){
-              ROM += "1";
-            }else{
-              ROM += "0";
-            }
-          }
-        }
-      }
-    }
-
-
 /*
+  //単一結線ROM読取(分割と傾きを用いた実装法)
+  dataA = dataB;
+  dataB = values[0];
+  
+  //1.傾きが急だと開始
+  if(!isReadROM && dataB - dataA > 350){
+    isReadROM = true;
+    nowROM = 1;
+  }
+  
+  //主要処理部分
+  if(isReadROM){
+    if(nowROM == 0 && dataA-dataB > 150){  //プラス上昇
+      nowROM = 1;
+      data = 0;
+      kami += values[0];
+      ROMs[ROMnum++] = values[0];
+    }else if(nowROM == 1 && abs(dataA-dataB) < 150){
+      nowROM = 2;
+      gin += values[0];
+//      ROMs[ROMnum++] = values[0];
+    }else if(nowROM == 2 && dataA-dataB < -150){    //マイナス下降
+      nowROM = 3;
+      data = 0;
+    }else if(nowROM != 3 && abs(dataA-dataB) < 150){  //安定
+      nowROM = 0;
+      data++;
+    }
+  }
+  if(data > 100){
+    isReadROM = false;
+  }
+  
+  //出力処理
+  if(!isReadROM && ROMnum != 0 && !Fin){
+    Fin = true;
+    kami = kami / ROMnum;
+    gin = gin / ROMnum;
+    for(int i = 2; i < ROMnum; i++){
+      if(kami < ROMs[i]){
+        ROM += "1";
+      }else{
+        ROM += "0";
+      }
+    }
+  }
+  
+  for(int i = 0; i < ROMnum; i++){
+    print(ROMs[i]+" ");
+  }
+  println("");
+  */
+  
+  
   //単一結線ROM読取(分割を用いた実装法，速度依存)
   //1.黒線に触れる
   if(!isReadROM && !isResetROM && rom.ResetROM(values[0])){
     isReadROM = true;
     isResetROM = false;
   }
+  
   if(isReadROM){
     if(ROMMin < rom.one_threshold){
       isResetROM = false;
     }
     //3.再度黒線に触れる
     if(!isResetROM && rom.ResetROM(values[0])){
-//      ROM = rom.ReturnROMValue(ROMMin,ROM);
+      //ROM = rom.ReturnROMValue(ROMMin,ROM);
 
       //大小を判断
       if(ROMMin < rom.one_threshold){
@@ -187,6 +196,8 @@ void draw() {
       if(ROMMin == 0){
         isReadROM = false;
         isResetROM = true;
+        output.flush();
+        output.close();
         //4.最後に出力する
         if(!isReadROM && isResetROM){
           for(int i =0; i < ROMnum; i++){
@@ -195,58 +206,29 @@ void draw() {
             if(ROMs[i] > 9900){
               ;
             }else if(ookii-ROMs[i] < ROMs[i]-tiisai){
-              ROM += "1";
+              //ROM += "1";
             }else{
-              ROM += "0";
+              //ROM += "0";
             }
           }
           println("");
         }
       }
     }
-*/
-}
-  
-  //サンプル出力
-  for(int i = 1;i < ROMnum; i++){
-    print(ROMs[i] + " ");
   }
-  println("");
-
-println("sum:" + ookii + "mini" + tiisai);
-
-/*
-  //単一結線ROM読取(閾値を用いた実装法，超速度依存)
-  //1.黒線に触れる
-  if(!isReadROM && !isResetROM && rom.ResetROM(values[0])){
-    isReadROM = true;
-    isResetROM = false;
-  }
-  if(isReadROM){
-    if(ROMMin < 10000){
-      isResetROM = false;
-    }
-    //3.再度黒線に触れる
-    if(!isResetROM && rom.ResetROM(values[0])){
-      ROM = rom.ReturnROMValue(ROMMin,ROM);
-      ROMMin = 10000;
-      isResetROM = true;
-    //2.再度黒線に触れるまで
-    }else{
-      ROMMin = rom.ReturnMin(values[0],ROMMin);
-      
-      //手を離した際(読込終了)
-      if(ROMMin == 0){
-        isReadROM = false;
-        isResetROM = true;
-      }
+  if(!isReadROM && isResetROM){
+      data++;
+    if(data == 60){
+          ROM += "011";
     }
   }
-*/
   
-  //単一結線を用いたROM読取(ROM配置を変更したためボツ)
-//  ROM = rom.onelinerom(values[0], ROM);
-
+            println("ROMNUMiS"+ROMnum);
+  
+  //CSV出力
+//  if(!(!isReadROM && isResetROM)){
+    output.println(values[0]);
+//  }
 
 
   //最新の平均センサ値表示
@@ -261,9 +243,11 @@ println("sum:" + ookii + "mini" + tiisai);
   }
 
   //ROM結果表示
+  textSize(32);
   text(ROM, graphyoko+graphWidth+100, 200);
+  textSize(20);
   println(ROM);
-  println(ROMnum);
+  //println(ROMnum);
 }
 
 //キャリってブレる
@@ -275,6 +259,16 @@ void keyPressed() {
   } else if (key == 'q') {
     output.flush();
     output.close();
+  } else if (key == 'r'){
+     //ファイル出力
+     output.flush();
+     output.close();
+    String out = hour() + "" + minute() +""+ second()+".txt";
+    output = createWriter(out);
+    isReadROM = false;
+    isResetROM = false;
+    ROMMin = 10000;
+    ROMnum = 0;
   }
 }
 

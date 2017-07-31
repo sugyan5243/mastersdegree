@@ -1,7 +1,8 @@
 public class ROM{
-  int out_threshold = 150;
-  int zero_threshold = 500;
-  int one_threshold = 1500;
+//  int out_threshold = 150;
+  int out_threshold = 30;
+  int zero_threshold = 100;
+  int one_threshold = 200;
   int i = 100;
   boolean isReadROM = false;  //読込を行ってから次の読込に遷移するまで
   boolean isStartROM = false;  //読込開始(基準:zero_threshold以上の値となったとき)
@@ -19,9 +20,9 @@ public class ROM{
       }else if(!isReadROM){
         isReadROM = true;
         if(values[0] < zero_threshold){
-          ROM+= "0";
+          //ROM+= "0";
         }else if(one_threshold < value){
-          ROM+= "1";
+          //ROM+= "1";
         }
       }
     }
@@ -31,6 +32,15 @@ public class ROM{
   //リセット部分に触れた場合
   Boolean ResetROM(float value){
     if(one_threshold < value){
+      return true;
+    }else{
+      return false;
+    }
+  }
+  
+  //傾きが急かどうか
+  Boolean KatamukiROM(float value1, float value2){
+    if(abs(value1 - value2) > 100){
       return true;
     }else{
       return false;
@@ -56,7 +66,7 @@ public class ROM{
       return Now;
     }
   }
-  
+
   //ROMの値を返す
   String ReturnROMValue(float value, String ROM){
     if(zero_threshold < value && value < one_threshold){
