@@ -25,7 +25,11 @@ PlaceCircle placeCircle;
 WaveGraph waveGraph;
 WaveGraph[] waveGraphs = new WaveGraph[SENSOR_NUM];
 
+
+PrintWriter output;  // PrintWriter型のオブジェクトを宣言
+
 void setup(){
+  output = createWriter("test.txt");  // ファイル名test.txtでファイルを開く
   size(1600,900);
   myPort = new Serial(this,SERIAL_ADDRESS, 9600);
   display = loadFont("Serif-48.vlw");
@@ -115,6 +119,13 @@ void keyPressed(){
       }
       calibration = true;
       break;
+    case 'a':
+            output.println(values[0]+" "+values[1]+" "+values[2]+" "+values[3]);
+          break;
+    case 'f':
+          output.flush();  // 出力バッファに残っているデータを全て書き出し  
+          output.close();  // ファイルを閉じる
+          break;
     case '1':
     case '2':
     case '3':
