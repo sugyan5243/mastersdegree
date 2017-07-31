@@ -1,48 +1,39 @@
-#include <CapSense.h>
+//CapSenseを使わないで電圧値をシリアル通信にて受信する(できた!)
 
-CapSense cs_19_14 = CapSense(19,14); //ピン4-2間に10MΩ，ピン2に銀ナノ
-CapSense cs_19_15 = CapSense(19,15);
-CapSense cs_19_16 = CapSense(19,16);
-CapSense cs_19_17 = CapSense(19,17);
-CapSense cs_19_18 = CapSense(19,18);
+//回路から得られる電圧値(0~1023)
+float volt1 = 0.0;
+float volt2 = 0.0;
+float volt3 = 0.0;
+float volt4 = 0.0;
+float volt5 = 0.0;
 
-static int y1[2] = {0};
-static int y2[2] = {0};
-static int y3[2] = {0};
-static int y4[2] = {0};
-static int y5[2] = {0};
+//参照電圧(取得できる最大電圧値 = 1024の値)
+float Vref = 5.0;
 
+//ローパスフィルタ
 float lowpass = 0.9;
 
 void setup() {
+  //シリアル通信のボーレート(1秒間に何ビットのデータを送るか)を9600(=1bit104u秒)に
   Serial.begin(9600);
 }
 
 void loop() {
-  long total1 = cs_19_14.capSense(30);
-  long total2 = cs_19_15.capSense(30);
-  long total3 = cs_19_16.capSense(30);
-  long total4 = cs_19_17.capSense(30);
-  long total5 = cs_19_18.capSense(30);
-
-  y1[1] = lowpass * y1[0] + (1-lowpass) * total1;
-  y2[1] = lowpass * y2[0] + (1-lowpass) * total2;
-  y3[1] = lowpass * y3[0] + (1-lowpass) * total3;
-  y4[1] = lowpass * y4[0] + (1-lowpass) * total4;
-  y5[1] = lowpass * y5[0] + (1-lowpass) * total5;
-  Serial.print(y1[1]);
-  Serial.print(" ");
+  volt1 = analogRead(14);
+  volt1 = (volt1 / 1024.0) *Vref;    //実際の電圧値への変換
+  volt2 = analogRead(15);
+  volt2 = (volt2 / 1024.0) *Vref;    //実際の電圧値への変換
+  volt3 = analogRead(16);
+  volt3 = (volt3 / 1024.0) *Vref;    //実際の電圧値への変換
+  volt4 = analogRead(17);
+  volt4 = (volt4 / 1024.0) *Vref;    //実際の電圧値への変換
   
-  Serial.print(y2[1]);
-  Serial.print(" ");
-  Serial.print(y3[1]);
-  Serial.print(" ");
-  Serial.print(y4[1]);
-  Serial.println(" ");
-  /*
-  Serial.print(y5[1]);
-  Serial.print(".");
-  */
-//  Serial.println(" ");
+  Serial.print(volt1);
+  Serial.print(",");
+  Serial.print(volt2);
+  Serial.print(",");
+  Serial.print(volt3);
+  Serial.print(",");
+  Serial.print(volt4);
+  Serial.println("");
 }
-
