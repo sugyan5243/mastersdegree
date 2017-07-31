@@ -1,7 +1,7 @@
 public class DrawGraph{
   int startX;
   int startY;
-  int dataStart = 80;
+  int dataStart = 80;  //パラメータの開始X(負の値として計算される)
   int graphWidth;
   int graphHeight;
   int graphMax;
