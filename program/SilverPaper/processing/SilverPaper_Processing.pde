@@ -1,56 +1,59 @@
-//実装2: 用紙前面を用いた操作(できた!)
-//注意:使うときはノートPCの電源を抜いておくこと，コンセントの電源は交流なので出力に影響する
-//対応するArduinoプログラム: SilverPaper_Arduino
+//CAUTION: Put out a pc battery charger plug because it influence to output signal. 
+//correspondence program: SilverPaper_Arduino
 //Font: Menlo
 
 import processing.serial.*;
 
-//シリアル通信用変数
+//variables for serial communication
 Serial myPort;
 PFont display;
 
-//センサ数と平均個数
-//平均= 複数個のセンサの平均を複数個集めて平均をとッたもの
-int sensorNum = 4;
-int averageNum = 10;
-int aveaverageNum = 2;
+boolean calibration = false;  //calibraction flag
 
-//グラフのMAXパラメータと基準線
-int graphyoko = 80;
-int graphWidth = 700;
-int graphHeight = 250;
-float graphMax = 1000;
-float graphAve = 800;
-int ellipseMax = 300;
+// sensor values
+float[] values = new float[SENSOR_NUM];
+float[][] lastNumValues = new float[SENSOR_NUM][AVERAGE_NUM]; // last num values
+float[] aveValues = new float[SENSOR_NUM];  // last num ave
+float[][] lastNumAveValues = new float[SENSOR_NUM][AVERAGE_NUM*AVE_AVERAGE_NUM];  //ave ave
+float[] nonValues = new float[SENSOR_NUM];
+float[] baseValues = new float[SENSOR_NUM];
+float[] calibValues = new float[SENSOR_NUM];
 
-//キャリブレーション
-boolean calibration = false;
+String aveValuesStr[] = new String[SENSOR_NUM];
 
-//センサの値
-float[] values = new float[sensorNum];
-float[][] lastNumValues = new float[sensorNum][averageNum]; // last num values
-float[] aveValues = new float[sensorNum];  // last num ave
-float[][] lastNumAveValues = new float[sensorNum][averageNum*aveaverageNum];  //ave ave
-float[] baseValues = new float[sensorNum];
-float[] calibValues = new float[sensorNum];
-
-String aveValuesStr[] = new String[sensorNum];
-
+PlaceCircle placeCircle;
+WaveGraph waveGraph;
+WaveGraph[] waveGraphs = new WaveGraph[SENSOR_NUM];
 
 void setup(){
-  size(1000,300);
-  myPort = new Serial(this,"/dev/cu.usbmodem1411", 9600);
+  size(1600,900);
+  myPort = new Serial(this,SERIAL_ADDRESS, 9600);
   display = loadFont("Serif-48.vlw");
   textFont(display, 20);
+  
+  //placeCircle = new PlaceCircle(PLACE_CIRCLE_POS[X],PLACE_CIRCLE_POS[Y],PLACE_CIRCLE_DIAMETER);
+  //waveGraph = new WaveGraph(WAVE_GRAPH_POS[X],WAVE_GRAPH_POS[Y],WAVE_GRAPH_SIZE[X],WAVE_GRAPH_SIZE[Y]);
+
+//  placeCircle = new PlaceCircle(575+200,250+200,400,30);
+  placeCircle = new PlaceCircle(200,300,400,30);
+  waveGraphs[0] = new WaveGraph(700,25,150,200);
+  waveGraphs[1] = new WaveGraph(350,350,150,200);
+  waveGraphs[2] = new WaveGraph(700,675,150,200);
+  waveGraphs[3] = new WaveGraph(1050,350,150,200);
+  
+  waveGraphs[0].changeGraphDesign(COLOR_BLACK,COLOR_RED,4);
+  waveGraphs[1].changeGraphDesign(COLOR_BLACK,COLOR_ORANGE,4);
+  waveGraphs[2].changeGraphDesign(COLOR_BLACK,COLOR_GREEN,4);
+  waveGraphs[3].changeGraphDesign(COLOR_BLACK,COLOR_BLUE,4);
 }
 
 void draw(){
   background(255);  //white
 
-  //過去SensorValue-1個の値+新規値から平均値を更新
+  //update average value by latest sensor value
   aveValues = reloadArrayAndCalcAverage(lastNumValues,values);
 
-  //平均値の平均値を計算し，センサ値を表示
+  //calcurate and display the average values
   for(int i = 0; i < lastNumAveValues.length; i++){
     reloadArray(lastNumAveValues[i], aveValues[i]);
    
@@ -61,234 +64,103 @@ void draw(){
     aveValuesStr[i] += ": ";
     aveValuesStr[i] += (int)(aveValues[i]);
     
-    text(aveValuesStr[i], graphyoko+i*120, 280);
+    text(aveValuesStr[i], i*120, 20);
   }
   
-  //グラフ描画
-  drawGraphData(lastNumAveValues);
-  drawGraphFrame(lastNumAveValues);
+  //display a graph
+  //waveGraph.drawGraphData(lastNumAveValues);
+  //waveGraph.drawGraphFrame(lastNumAveValues);
+  for(int i=0;i<SENSOR_NUM;i++)
+//    waveGraphs[i].drawGraph(lastNumAveValues[i]);
   
-  //リング描画
-  drawPosition(calibValues,baseValues,aveValues);
+  //display a ring circle
+  //placeCircle.drawPosition(calibValues,baseValues,aveValues);
+  placeCircle.drawCircle(calibValues,aveValues,baseValues,nonValues);
 }
 
-//色変更
 void changeColor(int colors){
   switch(colors){
     case 0:  //red
-      stroke(255,0,0);
-      fill(255,0,0);
+      stroke(COLOR_RED);
+      fill(COLOR_RED);
       break;
     case 1:  //orange
-      stroke(255,165,0);  
-      fill(255,165,0);
+      stroke(COLOR_ORANGE);  
+      fill(COLOR_ORANGE);
       break;
     case 2:  //green
-      stroke(0,150,0);
-      fill(0,150,0);
+      stroke(COLOR_GREEN);
+      fill(COLOR_GREEN);
       break;
     case 3:  //blue
-      stroke(0,60,255);
-      fill(0,60,255);
+      stroke(COLOR_BLUE);
+      fill(COLOR_BLUE);
       break;
     default:  //black
-      stroke(0,0,0);
-      fill(0,0,0);
+      stroke(COLOR_BLACK);
+      fill(COLOR_BLACK);
       break;
   }
 }
 
-//グラフ外部描画
-void drawGraphFrame(float value[][]){
-  stroke(0,0,0);  //black
-  noFill();
-  rect(graphyoko,0,(value[0].length-1)*(graphWidth/(float)(averageNum*aveaverageNum)),graphHeight);
-  fill(0,0,0);
-  text("0", 40, graphHeight);
-  text("500", 20, convToGraphPoint(500));
-  tenline(graphyoko,(int)convToGraphPoint(500),(graphyoko/2)+graphWidth,(int)convToGraphPoint(500));
-  text("[arb. unit]", 0, 15);
-  text("20 [num]", (graphyoko/2)+10+graphWidth, graphHeight);
-//  text("[num]", (graphyoko/2)+10+graphWidth, graphHeight);
-
-}
-
-//波形描画
-void drawGraphData(float value[][]){
-  strokeWeight(2);
-  for(int i = 0; i < value.length; i++){
-    changeColor(i);
-    for(int j = 0; j < value[i].length-1; j++){
-      line(graphyoko+j*(graphWidth/(float)(averageNum*aveaverageNum)),convToGraphPoint(value[i][j]),graphyoko+(j+1)*(graphWidth/(float)(averageNum*aveaverageNum)),convToGraphPoint(value[i][j+1]));
-    }
-  }
-}
-
-
-//値をグラフの点に変換
-float convToGraphPoint(float value){
-  return height-(height-graphHeight) - (value*(graphHeight/graphMax));
-}
-
-void tenline(int x1, int y1, int x2, int y2){
-  float  bx, by;   //直前座標記録用
-  int tenNum = 100;  //点線の個数
-  String hasen = "0101"; //破線パターン
-  
-  strokeWeight(1);
-  stroke( 0,0,0);
-  
-  //直前の座標を「始点」に初期化する
-  bx = x1;
-  by = y1;
-  
-  //点を始点・終点を含めてtenNum個打つ
-  for( int i = 0, j = 0; i <= tenNum; i++ ){
-    float px = lerp( x1, x2, i/(float)tenNum );
-    float py = lerp( y1, y2, i/(float)tenNum );
-    
-    //破線パターンが1の場合は線で結ぶ
-    String ptn = hasen.substring(j,j+1);
-    j++;
-    //パターンの終端まで来たら、最初に戻る
-    if( j >= hasen.length() ){ j = 0; }
-    
-    if( ptn.equals("1") == true ){
-      //線で結ぶ
-      line( bx, by, px, py );
-    } else {
-      ;
-    }
-    
-    //直前の座標を更新
-    bx = px;
-    by = py;
-  }
-}
-
-
-//タッチ点を描画
-void drawPosition(float calibs[], float bases[], float values[]){
-  float[] renge = new float[values.length];
-  float[] upping = new float[values.length];
-  float[] data = new float[values.length];
-  float[] transdata = new float[values.length];
-  int diameter = 120;
-  int over = 0;
-  
-  pushMatrix();
-  pushStyle();
-  stroke(0);
-  noFill();
-  ellipse(width-100,70,diameter,diameter);
-
-  //データいじり
-  for(int i = 0;i < values.length; i++){
-    if(values[0]+values[1]+values[2]+values[3] < 80) break;
-    renge[i] = calibs[i] - bases[i];
-    upping[i] = values[i] - bases[i];
-    data[i] = upping[i]/renge[i];
-    
-    //限界突破チェック
-    if((data[i]*(float)diameter/2 > (float)diameter/2)||(values[i] > 500)){
-      transdata[i] = diameter/2;
-      over = i+1;
-    }else{
-      transdata[i] = data[i]*(float)diameter/2;
-    }
-    if(i == 1 || i == 2){
-      transdata[i] *= -1;
-    }
-  }
-  
-    //もしどれかが限界突破した場合
-    if(over != 0){
-      stroke(200,0,0);
-      fill(200,0,0);
-      if((over-1) == 0 || (over-1) == 2){
-        translate(transdata[over-1],0);
-      }else{
-        translate(0,transdata[over-1]);
+void keyPressed(){
+  switch(key){
+    case 'n':
+      for(int i = 0; i < values.length; i++){
+        nonValues[i] = aveValues[i];
       }
-    
-    //限界突破はしなかった場合
-    }else{
-      stroke(200, 100, 200);
-      fill(200, 100, 200);
-      for(int i = 0;i < values.length; i++){
-        if(i == 0 || i == 2){
-          translate(transdata[i],0);
-        }else{
-          translate(0,transdata[i]);
+    case 'c':
+      for(int i = 0; i < values.length; i++){
+        baseValues[i] = aveValues[i];
+      }
+      calibration = true;
+      break;
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+      calibValues[key-'1'] = aveValues[key-'1'];
+      break;
+  }
+}
+
+void serialEvent(Serial myPort) {
+  if (myPort.available() >= 2*SENSOR_NUM-1) {
+    String cur = myPort.readStringUntil('\n');
+    if (cur != null) {
+      String[] parts = split(cur, ",");
+      if (parts.length == SENSOR_NUM) {
+        for (int i = 0; i < SENSOR_NUM; i++) {
+          //print(parts[i]);
+          //print(" ");
+          values[i] = float(parts[i]);
         }
       }
     }
-    
-    pushMatrix();
-    translate(width-100,70);
-    ellipse(0, 0, 10, 10);
-    popMatrix();
-  popMatrix();
+  }
 }
 
-
-//valuesのj-1個の値+最新の値(newvalues)から平均値(ave)を更新
+//update average values by using all past datas and latest data
 float[] reloadArrayAndCalcAverage(float oldValues[][], float newValues[]){
   float ave[] = new float[oldValues.length];
-  
+    
   for(int i = 0; i < oldValues.length; i++){
     for(int j = 0; j < oldValues[i].length -1; j++){
       oldValues[i][j] = oldValues[i][j+1];
       ave[i] += oldValues[i][j+1];
     }
-    
+      
     oldValues[i][oldValues[i].length-1] = newValues[i];
     ave[i] += newValues[i];
     ave[i] /= oldValues[i].length;
   }
   return ave;
 }
-
-//平均値の平均を更新
+  
+//update average value
 void reloadArray(float aveave[], float average){
   for(int i = 0; i < aveave.length-1; i++){
     aveave[i] = aveave[i+1];
   }
   aveave[aveave.length-1] = average;
-}
-
-//キャリってブレる
-void keyPressed(){
-  if(key == 'c'){
-    for(int i = 0; i < values.length; i++){
-      baseValues[i] = aveValues[i];
-    }
-    calibration = true;
-  }
-  if(key == '1'){
-    calibValues[0] = aveValues[0];
-  }else if(key == '2'){
-    calibValues[1] = aveValues[1];
-  }else if(key == '3'){
-    calibValues[2] = aveValues[2];
-  }else if(key == '4'){
-    calibValues[3] = aveValues[3];
-  }
-}
-
-//シリアル通信にてデータを受け取る
-void serialEvent(Serial myPort) {
-  if (myPort.available() >= 2*sensorNum-1) {
-    String cur = myPort.readStringUntil('\n');
-    if (cur != null) {
-      String[] parts = split(cur, ",");
-      if (parts.length == sensorNum) {
-        for (int i = 0; i < sensorNum; i++) {
-          print(parts[i]);
-          print(" ");
-          values[i] = float(parts[i]);
-        }
-      }
-    }
-  }
 }
